@@ -1,0 +1,617 @@
+==============================
+ARQUIVO 1: app/page.tsx
+==============================
+
+"use client";
+
+import { useEffect, useRef } from "react";
+import Lenis from "lenis";
+import gsap from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
+
+gsap.registerPlugin(ScrollTrigger);
+
+const TOTAL_FRAMES = 240;
+
+function getFramePath(index: number) {
+  const frameNumber = String(index + 1).padStart(5, "0");
+  return `/frames/inital/frame-${frameNumber}.jpg`;
+}
+
+export default function Home() {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const containerRef = useRef<HTMLElement | null>(null);
+  const textRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const lenis = new Lenis({
+      smoothWheel: true,
+      lerp: 0.08,
+    });
+
+    function raf(time: number) {
+      lenis.raf(time);
+      ScrollTrigger.update();
+      requestAnimationFrame(raf);
+    }
+
+    requestAnimationFrame(raf);
+
+    return () => {
+      lenis.destroy();
+    };
+  }, []);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const container = containerRef.current;
+
+    if (!canvas || !container) return;
+
+    const context = canvas.getContext("2d");
+
+    if (!context) return;
+
+    const frame = {
+      index: 0,
+    };
+
+    const images: HTMLImageElement[] = [];
+    let imagesLoaded = 0;
+
+    const setCanvasSize = () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    };
+
+    const render = () => {
+      const image = images[Math.round(frame.index)];
+
+      if (!image) return;
+
+      context.clearRect(0, 0, canvas.width, canvas.height);
+
+      const canvasRatio = canvas.width / canvas.height;
+      const imageRatio = image.width / image.height;
+
+      let drawWidth = canvas.width;
+      let drawHeight = canvas.height;
+      let offsetX = 0;
+      let offsetY = 0;
+
+      if (imageRatio > canvasRatio) {
+        drawHeight = canvas.height;
+        drawWidth = image.width * (canvas.height / image.height);
+        offsetX = (canvas.width - drawWidth) / 2;
+      } else {
+        drawWidth = canvas.width;
+        drawHeight = image.height * (canvas.width / image.width);
+        offsetY = (canvas.height - drawHeight) / 2;
+      }
+
+      context.drawImage(image, offsetX, offsetY, drawWidth, drawHeight);
+    };
+
+    setCanvasSize();
+
+    for (let i = 0; i < TOTAL_FRAMES; i++) {
+      const image = new Image();
+      image.src = getFramePath(i);
+
+      image.onload = () => {
+        imagesLoaded++;
+
+        if (imagesLoaded === 1) {
+          render();
+        }
+      };
+
+      images.push(image);
+    }
+
+    const ctx = gsap.context(() => {
+      gsap.to(frame, {
+        index: TOTAL_FRAMES - 1,
+        ease: "none",
+        snap: "index",
+        scrollTrigger: {
+          trigger: container,
+          start: "top top",
+          end: "+=5000",
+          scrub: 1,
+          pin: true,
+        },
+        onUpdate: render,
+      });
+
+      gsap.fromTo(
+        ".intro-title",
+        {
+          opacity: 0,
+          y: 80,
+          filter: "blur(18px)",
+        },
+        {
+          opacity: 1,
+          y: 0,
+          filter: "blur(0px)",
+          duration: 1.2,
+          ease: "power4.out",
+        }
+      );
+
+      gsap.fromTo(
+        ".intro-text",
+        {
+          opacity: 0,
+          y: 40,
+          filter: "blur(12px)",
+        },
+        {
+          opacity: 1,
+          y: 0,
+          filter: "blur(0px)",
+          duration: 1,
+          delay: 0.25,
+          ease: "power4.out",
+        }
+      );
+
+      gsap.to(textRef.current, {
+        opacity: 0,
+        y: -80,
+        filter: "blur(16px)",
+        scrollTrigger: {
+          trigger: container,
+          start: "top top",
+          end: "+=1200",
+          scrub: true,
+        },
+      });
+
+      gsap.fromTo(
+        ".final-content",
+        {
+          opacity: 0,
+          y: 80,
+          filter: "blur(20px)",
+        },
+        {
+          opacity: 1,
+          y: 0,
+          filter: "blur(0px)",
+          scrollTrigger: {
+            trigger: ".final-section",
+            start: "top 70%",
+            end: "top 25%",
+            scrub: true,
+          },
+        }
+      );
+    });
+
+    const handleResize = () => {
+      setCanvasSize();
+      render();
+    };
+
+    window.addEventListener("resize", handleResize);
+
+    return () => {
+      ctx.revert();
+      window.removeEventListener("resize", handleResize);
+      ScrollTrigger.killAll();
+    };
+  }, []);
+
+  const scrollToExperience = () => {
+    containerRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  };
+
+  return (
+    <main className="page">
+      <section className="opening-section">
+        <div className="opening-noise" />
+
+        <div className="opening-content">
+          <span className="opening-tag">Frame by frame experience</span>
+
+          <h1 className="intro-title">
+            O fim do vídeo
+            <br />
+            vira o começo da experiência.
+          </h1>
+
+          <p className="intro-text">
+            Role a página e atravesse a cena frame por frame, como se o vídeo
+            estivesse respondendo ao seu movimento.
+          </p>
+
+          <button onClick={scrollToExperience}>Começar</button>
+        </div>
+      </section>
+
+      <section ref={containerRef} className="scroll-video-section">
+        <canvas ref={canvasRef} className="scroll-canvas" />
+
+        <div className="canvas-overlay" />
+
+        <div ref={textRef} className="scroll-text">
+          <span>Scroll cinematic</span>
+
+          <h2>
+            Cada rolagem revela
+            <br />
+            um novo instante.
+          </h2>
+
+          <p>
+            São 240 frames conectados ao scroll, criando uma navegação com cara
+            de filme.
+          </p>
+        </div>
+
+        <div className="scroll-indicator">
+          <span>role para avançar</span>
+          <div />
+        </div>
+      </section>
+
+      <section className="final-section">
+        <div className="final-content">
+          <span>Experiência concluída</span>
+
+          <h2>
+            Agora a página tem ritmo,
+            <br />
+            movimento e impacto.
+          </h2>
+
+          <p>
+            Aqui você pode colocar o CTA final: contato, apresentação do projeto,
+            assistir ao vídeo completo ou continuar navegando.
+          </p>
+
+          <button>Quero saber mais</button>
+        </div>
+      </section>
+    </main>
+  );
+}
+
+
+==============================
+ARQUIVO 2: app/globals.css
+==============================
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: #050505;
+  color: #ffffff;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+html {
+  scroll-behavior: auto;
+}
+
+body {
+  overflow-x: hidden;
+}
+
+button {
+  font-family: inherit;
+}
+
+.page {
+  width: 100%;
+  min-height: 100vh;
+  background: #050505;
+  overflow-x: hidden;
+}
+
+/* ABERTURA */
+
+.opening-section {
+  position: relative;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  padding: 8vw;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 15% 20%, rgba(255, 255, 255, 0.14), transparent 28%),
+    radial-gradient(circle at 80% 10%, rgba(255, 255, 255, 0.08), transparent 30%),
+    linear-gradient(135deg, #050505 0%, #141414 45%, #000000 100%);
+}
+
+.opening-section::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+  background-size: 80px 80px;
+  mask-image: linear-gradient(to bottom, black, transparent);
+  pointer-events: none;
+}
+
+.opening-section::after {
+  content: "";
+  position: absolute;
+  width: 42vw;
+  height: 42vw;
+  right: -14vw;
+  top: 8vh;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  filter: blur(90px);
+  pointer-events: none;
+}
+
+.opening-noise {
+  position: absolute;
+  inset: 0;
+  opacity: 0.18;
+  background-image:
+    repeating-linear-gradient(
+      0deg,
+      rgba(255, 255, 255, 0.03) 0px,
+      rgba(255, 255, 255, 0.03) 1px,
+      transparent 1px,
+      transparent 3px
+    );
+  pointer-events: none;
+}
+
+.opening-content {
+  position: relative;
+  z-index: 2;
+  max-width: 980px;
+}
+
+.opening-tag {
+  display: inline-flex;
+  margin-bottom: 28px;
+  padding: 10px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+}
+
+.opening-content h1 {
+  margin: 0;
+  font-size: clamp(48px, 8vw, 118px);
+  line-height: 0.9;
+  letter-spacing: -0.075em;
+}
+
+.opening-content p {
+  max-width: 650px;
+  margin: 34px 0 0;
+  color: rgba(255, 255, 255, 0.68);
+  font-size: clamp(18px, 2vw, 24px);
+  line-height: 1.5;
+}
+
+.opening-content button,
+.final-content button {
+  margin-top: 42px;
+  padding: 16px 30px;
+  border: 0;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #050505;
+  font-size: 15px;
+  font-weight: 800;
+  cursor: pointer;
+  transition:
+    transform 0.25s ease,
+    opacity 0.25s ease;
+}
+
+.opening-content button:hover,
+.final-content button:hover {
+  transform: translateY(-3px);
+  opacity: 0.82;
+}
+
+/* SCROLL VIDEO */
+
+.scroll-video-section {
+  position: relative;
+  height: 100vh;
+  background: #000000;
+  overflow: hidden;
+}
+
+.scroll-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.canvas-overlay {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at center, transparent 30%, rgba(0, 0, 0, 0.5) 100%),
+    linear-gradient(to bottom, rgba(0, 0, 0, 0.45), transparent 35%, rgba(0, 0, 0, 0.55));
+  pointer-events: none;
+}
+
+.scroll-text {
+  position: absolute;
+  z-index: 3;
+  left: 6vw;
+  bottom: 14vh;
+  max-width: 780px;
+}
+
+.scroll-text span {
+  display: inline-block;
+  margin-bottom: 18px;
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.24em;
+}
+
+.scroll-text h2 {
+  margin: 0;
+  font-size: clamp(44px, 7vw, 104px);
+  line-height: 0.92;
+  letter-spacing: -0.07em;
+}
+
+.scroll-text p {
+  max-width: 520px;
+  margin: 28px 0 0;
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 18px;
+  line-height: 1.55;
+}
+
+.scroll-indicator {
+  position: absolute;
+  z-index: 4;
+  right: 6vw;
+  bottom: 8vh;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  color: rgba(255, 255, 255, 0.58);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+}
+
+.scroll-indicator div {
+  width: 72px;
+  height: 1px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.scroll-indicator div::after {
+  content: "";
+  display: block;
+  width: 40%;
+  height: 100%;
+  background: #ffffff;
+  animation: loadingLine 1.4s ease-in-out infinite;
+}
+
+@keyframes loadingLine {
+  0% {
+    transform: translateX(-120%);
+  }
+
+  100% {
+    transform: translateX(260%);
+  }
+}
+
+/* FINAL */
+
+.final-section {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  padding: 8vw;
+  background:
+    radial-gradient(circle at 50% 15%, rgba(255, 255, 255, 0.12), transparent 32%),
+    linear-gradient(135deg, #080808 0%, #111111 45%, #030303 100%);
+}
+
+.final-content {
+  max-width: 980px;
+}
+
+.final-content span {
+  display: inline-block;
+  margin-bottom: 24px;
+  color: rgba(255, 255, 255, 0.54);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.24em;
+}
+
+.final-content h2 {
+  margin: 0;
+  font-size: clamp(44px, 7vw, 104px);
+  line-height: 0.92;
+  letter-spacing: -0.07em;
+}
+
+.final-content p {
+  max-width: 620px;
+  margin: 30px 0 0;
+  color: rgba(255, 255, 255, 0.66);
+  font-size: 19px;
+  line-height: 1.6;
+}
+
+/* RESPONSIVO */
+
+@media (max-width: 900px) {
+  .opening-section,
+  .final-section {
+    padding: 28px;
+  }
+
+  .opening-content h1,
+  .scroll-text h2,
+  .final-content h2 {
+    letter-spacing: -0.055em;
+  }
+
+  .scroll-text {
+    left: 28px;
+    right: 28px;
+    bottom: 18vh;
+  }
+
+  .scroll-text p {
+    font-size: 16px;
+  }
+
+  .scroll-indicator {
+    left: 28px;
+    right: auto;
+    bottom: 7vh;
+  }
+}
+
+
+==============================
+OBSERVAÇÃO IMPORTANTE
+==============================
+
+Os frames precisam estar exatamente aqui:
+
+public/frames/inital/frame-00001.jpg
+public/frames/inital/frame-00002.jpg
+public/frames/inital/frame-00003.jpg
+...
+public/frames/inital/frame-00240.jpg
+
+A pasta está escrita como "inital", igual você passou.
+Se mudar para "initial", altere também no código:
+
+return `/frames/initial/frame-${frameNumber}.jpg`;
